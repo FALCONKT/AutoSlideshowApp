@@ -255,8 +255,8 @@ class MainActivity : AppCompatActivity() {
     }
 
 //    cursorを閉じるMethod 終了時自動実行
-    override fun onStop() {
-        super.onStop()
+    override fun onDestroy() {
+        super.onDestroy()
         cursor!!.close()
     }
 
