@@ -10,30 +10,30 @@ import android.os.Build;
 import android.provider.MediaStore;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.os.Handler
+import android.util.Log
 
 import kotlinx.android.synthetic.main.activity_main.*
-//import android.content.ContentResolver
-//import android.support.v4.app.SupportActivity
-//import android.support.v4.app.SupportActivity.ExtraData
-//import android.support.v4.content.ContextCompat.getSystemService
-//import android.icu.lang.UCharacter.GraphemeClusterBreak.T
-//import android.net.nsd.NsdManager
+import java.util.*
 
 
 class MainActivity : AppCompatActivity() {
 
-//    Permission用　Field変数
+    //    Permission用　Field変数
     private val PERMISSIONS_REQUEST_CODE = 100
 
+    //   cursor は　Cursor型で宣言 ContentProviderのデータを参照するClass
+    var cursor: Cursor? = null
 
-//    画像取得用　Field変数
-//   contentResolver は　 ContentProviderのデータを参照するClass
-    val resolver = contentResolver
+    // Timer用の時間のための変数
+    private var mTimer: Timer? = null
+    //    import要
 
-//   cursor は　Cursor型で宣言 ContentProviderのデータを参照するClass
-//    abstract val cursor : Cursor
+    // Timer用の時間のための変数
+    private var mTimerSec = 0.0
 
-    var cursor : Cursor? = null
+    private var mHandler = Handler()
+    //    import要
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -49,35 +49,65 @@ class MainActivity : AppCompatActivity() {
                 // 許可されている
                 getContentsInfo()
             } else {
+                // Android 5系以下の場合
                 // 許可されていないので許可ダイアログを表示する
-                requestPermissions(arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE), PERMISSIONS_REQUEST_CODE)
+                requestPermissions(
+                    arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE),
+                    PERMISSIONS_REQUEST_CODE )
             }
-            // Android 5系以下の場合
-        } else {
-            getContentsInfo()
-
         }
+        // Permission設定　END＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝
 
+//      戻る　Button　Click　Listener
         back_button.setOnClickListener {
             //戻る実行 Method　使用
             getPreviousInfo()
         }
 
+//      次へ　Button　Click　Listener
         next_button.setOnClickListener {
             //次へ実行 Method　使用
             getNextInfo()
+        }
+
+//      再生　停止　Button　Click　Listener
+        play_stop_button.setOnClickListener {
+
+            if (play_stop_button.text == "再生") {
+                play_stop_button.text = "停止"
+                timerPlay()
+                back_button.setEnabled(false);
+                next_button.setEnabled(false);
+            } else {
+                play_stop_button.text = "再生"
+                timerPlayStop()
+                back_button.setEnabled(true);
+                next_button.setEnabled(true);
+            }
+
         }
 
 
     }
     //    onCreate END
 
-    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
+
+    //    Permission関数
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<String>,
+        grantResults: IntArray
+    ) {
         when (requestCode) {
             PERMISSIONS_REQUEST_CODE ->
                 if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                     getContentsInfo()
-
+                    getPreviousInfo()
+                    getNextInfo()
+                } else {
+                    getContentsInfo()
+                    getPreviousInfo()
+                    getNextInfo()
                 }
         }
     }
@@ -85,84 +115,153 @@ class MainActivity : AppCompatActivity() {
 
 
 
+    // Timerの始動　Method
+    private fun timerPlay() {
+        //        Slude Timerの作成
+//        変数mTimer　に　Timer()　Method　を指定
+        mTimer = Timer()
+
+        // Timerの始動
+        mTimer!!.schedule(object : TimerTask() {
+
+//            val resolver = contentResolver
+//
+//            //   cursor は　Cursor型で宣言 ContentProviderのデータを参照するClass
+//            var cursor = resolver.query(
+//                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+//                null, null, null, null
+//            )
+
+            override fun run() {
+                mTimerSec += 0.1
+                mHandler.post {
+
+                    if (!cursor!!.moveToNext()) {
+                        cursor!!.moveToFirst()
+                    }
+
+                    // indexからIDを取得し、そのIDから画像のURIを取得する
+                    val fieldIndex = cursor!!.getColumnIndex(MediaStore.Images.Media._ID)
+                    val id = cursor!!.getLong(fieldIndex)
+                    val imageUri =
+                        ContentUris.withAppendedId(
+                            MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                            id)
+
+                    //  val imageVIew = findViewById(R.id.imageView)
+                    imageView.setImageURI(imageUri)
+
+                }
+
+            }
+        }, 2000, 2000) // 最初に始動させるまで 100ミリ秒、ループの間隔を 100ミリ秒 に設定
+
+    }
+
+    //    Timerを止める　Method定義
+    private fun timerPlayStop() {
+        mTimer!!.cancel()
+    }
+
+
     //    画像情報取得　Method
     private fun getContentsInfo() {
 
-       //   cursor は　Cursor型で宣言 ContentProviderのデータを参照するClass
-        var cursor = resolver.query(
-            MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-            null, null, null, null
-        )
+
+           //    画像取得用　 変数
+            val resolver = contentResolver
+
+            cursor= resolver.query(
+                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                null, null, null, null
+            )
+
+            //    実験用
+            Log.d("kotlintest", cursor.toString())
+
 
         //       検索結果の最初のData を指定している
         if (cursor!!.moveToFirst()) {
+            // indexからIDを取得し、そのIDから画像のURIを取得する
+            val fieldIndex = cursor!!.getColumnIndex(MediaStore.Images.Media._ID)
+            val id = cursor!!.getLong(fieldIndex)
+            val imageUri = ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id)
 
-    //          画像のURIを順番に取得
-            do {
-                // indexからIDを取得し、そのIDから画像のURIを取得する
-                val fieldIndex = cursor.getColumnIndex(MediaStore.Images.Media._ID)
-                val id = cursor.getLong(fieldIndex)
-                val imageUri = ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id)
-
-                imageView.setImageURI(imageUri)
-            } while (cursor.moveToNext())
+            imageView.setImageURI(imageUri)
         }
-    //        cursor.close()
     }
     //    getContentsInfo() END
 
 
 
     // 次の画像へ
-    private fun getNextInfo() {
+  private fun getNextInfo() {
 
-        //   cursor は　Cursor型で宣言 ContentProviderのデータを参照するClass
-        var cursor = resolver.query(
-            MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-            null, null, null, null
-        )
+//            画像取得用　Field変数
+        val resolver = contentResolver
 
-        if (!cursor.moveToNext()) {
-            cursor.moveToFirst()
+//        cursor= resolver.query(
+//            MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+//            null, null, null, null
+//        )
+
+
+        if (!cursor!!.moveToNext()) {
+            cursor!!.moveToFirst();
         }
 
-        // indexからIDを取得し、そのIDから画像のURIを取得する
-        val fieldIndex = cursor.getColumnIndex(MediaStore.Images.Media._ID)
-        val id = cursor.getLong(fieldIndex)
-        val imageUri =
-            ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id!!)
+        //    実験用
+        Log.d("kotlintest", cursor!!.toString())
 
-//        val imageVIew = findViewById(R.id.imageView)
+
+//        cursor.moveToNext()
+        // indexからIDを取得し、そのIDから画像のURIを取得する
+        val fieldIndex = cursor!!.getColumnIndex(MediaStore.Images.Media._ID)
+        val id = cursor!!.getLong(fieldIndex)
+        val imageUri =
+            ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id)
+
         imageView.setImageURI(imageUri)
     }
-
 
 
     // 前の画像へ
     private fun getPreviousInfo() {
 
-        //   cursor は　Cursor型で宣言 ContentProviderのデータを参照するClass
-        var cursor = resolver.query(
-            MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-            null, null, null, null
-        )
+////            画像取得用　Field変数
+//        val resolver = contentResolver
+//
+//        cursor= resolver.query(
+//            MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+//            null, null, null, null
+//        )
 
-        if (!cursor.moveToPrevious()) {
-            cursor.moveToLast()
+        //    実験用
+        Log.d("kotlintest", cursor.toString())
+
+
+        if (!cursor!!.moveToPrevious()) {
+            cursor!!.moveToLast();
         }
 
         // indexからIDを取得し、そのIDから画像のURIを取得する
-        val fieldIndex = cursor.getColumnIndex(MediaStore.Images.Media._ID)
-        val id = cursor.getLong(fieldIndex)
+        val fieldIndex = cursor!!.getColumnIndex(MediaStore.Images.Media._ID)
+        val id = cursor!!.getLong(fieldIndex)
         val imageUri =
-            ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id!!)
+            ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id)
 
-//        val imageVIew = findViewById(R.id.imageView)
         imageView.setImageURI(imageUri)
+
     }
 
-
+//    cursorを閉じるMethod 終了時自動実行
+    override fun onStop() {
+        super.onStop()
+        cursor!!.close()
+    }
 
 
 }
 //Class END
+
+
